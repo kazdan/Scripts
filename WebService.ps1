@@ -1,23 +1,53 @@
 Import-Module webadministration
 Set-ExecutionPolicy RemoteSigned
-#############################################################################
-#
-# Creates all  Virtual directories for each web service with the new version
-# In case this is a new Machine, creates the WebServices site.
-# If needed, change the main path vdPath and directoryPath
-#
-#############################################################################
+
+###################3   USER INPUT PART #######################################
+
+do {
+$MainPath = Read-Host 'Enter full path, for example: D:\spaces\webservices\Versions'
+}
+until (Test-Path $MainPath)
+
+do { 
+$CopySourceCode = Read-Host 'To copy the source code from a remote server, Enter the full path, for example 10.10.10.1\c$\version\v3_3 -KEEP EMPTY TO SKIP'
+If (!$CopySourceCode) {break }
+}
+until (Test-Path $CopySourceCode)
+
+
+do{
+$Verstion = Read-Host 'Enter Version, for example: V3_2, make sure the folder exist'
+}
+until ( Test-Path($MainPath + '\' + $Verstion) )
+
+
+do{
+
+$Verstion_old = Read-Host 'Enter Previous Version, for example: V3_2 - make sure the folder exist'
+}
+until (Test-Path ($MainPath + '\' + $Verstion_old))
+$CopyFile = Read-Host 'Enter Y if you wish to copy config from previous version'
+
+
+
+
+
+$CopySourceCode = Read-Host 'To copy the source code from a remote server, Enter the full path, for example 10.10.10.1\c$\version\v3_3 -ENTER Z to skip'
+
+do {
+Write-Output 'Invalid Folder' 
+$CopySourceCode = Read-Host 'To copy the source code from a remote server, Enter the full path, for example 10.10.10.1\c$\version\v3_3 -KEEP EMPTY TO SKIP'
+If (!$CopySourceCode) {break }
+}
+until (Test-Path $CopySourceCode)
+
+
+###################3   USER INPUT PART #######################################
 
 $sites = Get-Childitem 'IIS:\Sites'
 #Products, define accordion to the application pool V2 or V4
 #$ProductV2 = 
 $ProductV4 = "API","Catalog","Notification","Social","Domains","Users","Billing","CAS","Pricing"
-
-$Verstion = Read-Host 'Enter Version, for example: V3_2'
-$Verstion_old = Read-Host 'Enter Previous Version, for example: V3_2'
-$CopyFile = Read-Host 'Enter Y if you wish to copy config from previous version'
-$MainPath = Read-Host 'Enter full path, for example: D:\spaces\webservices\Versions'
-
 
 $vdPath = $MainPath 
 $AppPollV2 = 'webservices V2.0'
@@ -49,7 +79,13 @@ if (!(Test-Path IIS:\AppPools\$AppPollV4 -pathType container))
     $appPool | Set-Item
     Write-Output "in" $AppPollV4
 }
- 
+
+
+#Copy code
+if (Test-Path $CopySourceCode)
+{
+
+} 
 
 #create folder
 if (!( Test-Path $vdPath ))
@@ -64,11 +100,7 @@ if (!( Test-Path $directoryPath ))
  #create site
  if (!(Test-Path IIS:\Sites\$iisAppName -pathType container))
  {
-            #$iisAppName = "webservices"
-            #$directoryPath = "C:\tvinci\web\webservices.tvinci.yes"
-            #$iisAppPoolName = "webservices V2.0"
-            #$iisAppPoolDotNetVersion = "v2.0"
-            #$iisPort = "8030"
+
      New-WebSite -Name $iisAppName -Port $iisPort  -HostHeader $iisAppName -PhysicalPath $directoryPath -ApplicationPool $iisAppPoolName -Force
 
  }
@@ -92,16 +124,15 @@ foreach ($element in $ProductV2) {
 foreach ($element in $ProductV4) {
     $path = $vdPath +'\' +$Verstion + '\'+ $element + '\'
 	$sitename = 'IIS:\Sites\webservices\'+ $element + '_' + $Verstion
-    #New-Item $path -type VirtualDirectory -physicalPath $vdPath
 	New-Item $sitename -physicalPath $path -type Application -ApplicationPool $AppPollV4
-    #Write-Output $path
     if ($CopyFile = 'Y')
         {
+            #copy file from old version
 	        Copy-Item ($MainPath +'\' +$Verstion_old + '\'+ $element + '\web.config') ($MainPath +'\' +$Verstion + '\'+ $element + '\web.config')
+            
+            #change version number in web.config
             (Get-Content $MainPath +'\' +$Verstion + '\'+ $element + '\web.config') | 
              Foreach-Object {$_ -replace $Verstion_old,$Verstion_old}  | 
              Out-File $MainPath +'\' +$Verstion + '\'+ $element + '\web.config'
         }
 	}
-
-		
